@@ -660,9 +660,12 @@ class HomeworkView extends AbstractView {
         ]);
     }
 
-    private function removeLowConfidenceDigits($confidences, $id) {
+    private static function removeLowConfidenceDigits(?array $confidences, string $id): string {
+        if ($confidences === null || count($confidences) !== strlen($id)) {
+            return $id;
+        }
+
         $ret = "";
-        $str_id = strval($id);
         $i = 0;
         $low_conf = 0;
         foreach ($confidences as $confidence_val) {
@@ -671,14 +674,14 @@ class HomeworkView extends AbstractView {
                 $low_conf++;
             }
             else {
-                $ret .= $str_id[$i];
+                $ret .= $id[$i];
             }
 
             $i++;
         }
 
         //if we didn't find any digits can't suggest similar ids
-        return $low_conf === strlen($str_id) ? $str_id : $ret;
+        return $low_conf === strlen($id) ? $id : $ret;
     }
 
     /**
@@ -783,7 +786,14 @@ class HomeworkView extends AbstractView {
                     $data = $bulk_upload_data[$file['filename_full']];
 
                     if ($use_ocr) {
-                        $tgt_string = $this->removeLowConfidenceDigits(json_decode($data['confidences']), $data['id']);
+                        $confidence_data = $data['confidences'] ?? null;
+                        $confidences = is_string($confidence_data)
+                            ? json_decode($confidence_data, true)
+                            : null;
+                        $tgt_string = self::removeLowConfidenceDigits(
+                            is_array($confidences) ? $confidences : null,
+                            (string) ($data['id'] ?? '')
+                        );
 
                         $matches = [];
                         if (strpos($tgt_string, '_') !== false) {
